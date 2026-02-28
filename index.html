@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Deep Sea Escape</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000b1e; font-family: 'Courier New', Courier, monospace; color: #00ffcc; }
+        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; }
+        #game-over { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: none; background: rgba(0,0,0,0.8); padding: 20px; border: 2px solid red; }
+        canvas { display: block; background: linear-gradient(#001f3f, #00050a); }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <h1>DEEP SEA ESCAPE</h1>
+        <div id="distance">Distance Traveled: 0m</div>
+        <p>Controls: WASD | Dodge the Red Mines!</p>
+    </div>
+
+    <div id="game-over">
+        <h1 style="color: red;">CRITICAL FAILURE</h1>
+        <p id="final-score"></p>
+        <button onclick="location.reload()">REBOOT SYSTEMS</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let gameActive = true;
+        let distance = 0;
+        const keys = {};
+
+        // Submarine Properties
+        const sub = {
+            x: 200, y: canvas.height / 2,
+            w: 60, h: 30,
+            speed: 5,
+            color: '#ffcc00'
+        };
+
+        // Obstacles (Mines)
+        let mines = [];
+        function spawnMine() {
+            mines.push({
+                x: canvas.width + 50,
+                y: Math.random() * canvas.height,
+                r: 15 + Math.random() * 10,
+                speed: 4 + (distance / 500) // Gets faster over time
+            });
+        }
+
+        // Handle Input
+        window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+        function update() {
+            if (!gameActive) return;
+
+            // Movement Logic
+            if (keys['w'] && sub.y > 0) sub.y -= sub.speed;
+            if (keys['s'] && sub.y < canvas.height - sub.h) sub.y += sub.speed;
+            if (keys['a'] && sub.x > 100) sub.x -= sub.speed; // Don't go too far back (Shark zone!)
+            if (keys['d'] && sub.x < canvas.width - 200) sub.x += sub.speed;
+
+            distance++;
+            document.getElementById('distance').innerText = `Distance Traveled: ${Math.floor(distance/10)}m`;
+
+            // Spawning
+            if (Math.random() < 0.03) spawnMine();
+
+            // Collision & Cleanup
+            mines.forEach((mine, i) => {
+                mine.x -= mine.speed;
+                
+                // Collision Detection
+                if (sub.x < mine.x + mine.r && sub.x + sub.w > mine.x - mine.r &&
+                    sub.y < mine.y + mine.r && sub.y + sub.h > mine.y - mine.r) {
+                    endGame();
+                }
+
+                if (mine.x < -50) mines.splice(i, 1);
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Shark Jaws (The Danger Zone)
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+            ctx.fillRect(0, 0, 80, canvas.height);
+            ctx.fillStyle = 'red';
+            ctx.font = '20px Arial';
+            ctx.fillText("SHARK ZONE", 10, canvas.height/2);
+
+            // Draw Submarine
+            ctx.fillStyle = sub.color;
+            ctx.beginPath();
+            ctx.ellipse(sub.x + 30, sub.y + 15, 30, 15, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(sub.x + 20, sub.y - 10, 15, 15); // Periscope
+
+            // Draw Mines
+            mines.forEach(mine => {
+                ctx.fillStyle = 'red';
+                ctx.beginPath();
+                ctx.arc(mine.x, mine.y, mine.r, 0, Math.PI * 2);
+                ctx.fill();
+                // Mine Spikes
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            });
+
+            // "Deep Sea" Particles
+            ctx.fillStyle = 'white';
+            for(let i=0; i<5; i++) {
+                ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 2, 2);
+            }
+        }
+
+        function endGame() {
+            gameActive = false;
+            document.getElementById('game-over').style.display = 'block';
+            document.getElementById('final-score').innerText = `You survived ${Math.floor(distance/10)} meters before being destroyed!`;
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+</body>
+</html>
